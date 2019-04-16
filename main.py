@@ -12,7 +12,7 @@ import cv2
 import time
 from geometry_msgs.msg import Twist, Vector3, Pose
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import Image, CompressedImage
+from sensor_msgs.msg import Image, CompressedImage, LaserScan
 from cv_bridge import CvBridge, CvBridgeError
 import cormodule
 import visao_module
@@ -26,10 +26,24 @@ centro = []
 atraso = 0.5E9 # 1 segundo e meio. Em nanossegundos
 area = 0.0 # Variavel com a area do maior contorno
 viu_cat = False
+centro_mnet = []
 
 # Só usar se os relógios ROS da Raspberry e do Linux desktop estiverem sincronizados. 
 # Descarta imagens que chegam atrasadas demais
 check_delay = False 
+
+
+
+
+def scaneou(dado):
+    print("Faixa valida: ", dado.range_min , " - ", dado.range_max )
+    print("Leituras:")
+    print(np.array(dado.ranges).round(decimals=2))
+    dados = dado
+    global dados
+
+
+
 
 # A função a seguir é chamada sempre que chega um novo frame
 def roda_todo_frame(imagem):
@@ -38,6 +52,7 @@ def roda_todo_frame(imagem):
 	global media
 	global centro
 	global viu_cat
+	global centro_mnet
 
 	now = rospy.get_rostime()
 	imgtime = imagem.header.stamp
@@ -66,7 +81,7 @@ def roda_todo_frame(imagem):
 		print('ex', e)
 	
 if __name__=="__main__":
-	rospy.init_node("cor")
+	rospy.init_node("main")
 
 	topico_imagem = "/kamera"
 	
@@ -98,21 +113,12 @@ if __name__=="__main__":
 				#print("testeeeeeeeeeeeeeeeeee", centro, media)
 				vel = Twist(Vector3(0,0,0), Vector3(0,0,-0.1))
 
-
-
 				dif = media[0] - centro[1]
 		
-
-
-
-
-
-
 				if  dif > 100:
 					vel_turn_right = Twist(Vector3(0.1,0,0), Vector3(0,0,-0.5))
 					velocidade_saida.publish(vel_turn_right)
 					rospy.sleep(0.1)
-
 
 
 				if dif < -100:
@@ -120,13 +126,20 @@ if __name__=="__main__":
 					velocidade_saida.publish(vel_turn_left)
 					rospy.sleep(0.1)
 
-
-
 				else:
 		
 					vel_front = Twist(Vector3(0.5,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel_front)
 					rospy.sleep(0.1)
+
+			if viu_cat:
+				if len(resultados) !=0:
+					origemx_gato = (abs(resultados[0][3][0] - resultados[0][2][0]))/2
+                    origemy_gato = (abs(resultados[0][3][1] - resultados[0][2][1]))/2
+
+                    difx = centro_mnet[0] - origemx_gato
+                    dify = centro_mnet[1] - origemy_gato
+
 
 				
 
