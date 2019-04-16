@@ -132,13 +132,19 @@ if __name__=="__main__":
 					velocidade_saida.publish(vel_front)
 					rospy.sleep(0.1)
 
+
+					
+
 			if viu_cat:
 				if len(resultados) !=0:
-					origemx_gato = (abs(resultados[0][3][0] - resultados[0][2][0]))/2
-                    origemy_gato = (abs(resultados[0][3][1] - resultados[0][2][1]))/2
+					
+					vel_front = Twist(Vector3(-1,0,0), Vector3(0,0,0))
+					velocidade_saida.publish(vel_front)
+					rospy.sleep(0.1)
 
-                    difx = centro_mnet[0] - origemx_gato
-                    dify = centro_mnet[1] - origemy_gato
+
+                    
+                    
 
 
 				
