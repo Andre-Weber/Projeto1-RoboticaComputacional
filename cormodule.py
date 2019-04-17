@@ -14,7 +14,7 @@ from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge, CvBridgeError
 import smach
 import smach_ros
-import auxiliar
+
 
 
 
@@ -23,32 +23,21 @@ def identifica_cor(frame):
 	'''
 	Segmenta o maior objeto cuja cor é parecida com cor_h (HUE da cor, no espaço HSV).
 	'''
-
-	# No OpenCV, o canal H vai de 0 até 179, logo cores similares ao 
-	# vermelho puro (H=0) estão entre H=-8 e H=8. 
-	# Precisamos dividir o inRange em duas partes para fazer a detecção 
-	# do vermelho:
-	colorpicker = widgets.ColorPicker(
-    concise=False,
-    description='Escolha uma cor',
-    value='#24da1e',
-    disabled=False
-	)
-
-	hsv1, hsv2 = aux.ranges(colorpicker.value)
-
+	
 
 
 
 	frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-	cor_menor = np.array([0, 50, 50])
-	cor_maior = np.array([8, 255, 255])
-	segmentado_cor = cv2.inRange(frame_hsv, hsv1, hsv2)
 
-	cor_menor = np.array([172, 50, 50])
-	cor_maior = np.array([180, 255, 255])
-	segmentado_cor += cv2.inRange(frame_hsv, cor_menor, cor_maior)
+	#HSV azul
+	cor_menor = np.array([90, 50, 50])
+	cor_maior = np.array([120, 255, 255])
+	segmentado_cor = cv2.inRange(frame_hsv, cor_menor, cor_maior)
+
+	#cor_menor = np.array([172, 50, 50])
+	#cor_maior = np.array([180, 255, 255])
+	#segmentado_cor += cv2.inRange(frame_hsv, cor_menor, cor_maior)
 
 
 	# A operação MORPH_CLOSE fecha todos os buracos na máscara menores 

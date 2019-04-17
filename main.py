@@ -18,6 +18,7 @@ import cormodule
 import visao_module
 
 
+
 bridge = CvBridge()
 
 cv_image = None
@@ -25,13 +26,13 @@ media = []
 centro = []
 atraso = 0.5E9 # 1 segundo e meio. Em nanossegundos
 area = 0.0 # Variavel com a area do maior contorno
-viu_cat = False
+viu_car = False
 centro_mnet = []
 
 # Só usar se os relógios ROS da Raspberry e do Linux desktop estiverem sincronizados. 
 # Descarta imagens que chegam atrasadas demais
 check_delay = False 
-
+resultados=[]
 
 
 
@@ -51,8 +52,9 @@ def roda_todo_frame(imagem):
 	global cv_image
 	global media
 	global centro
-	global viu_cat
+	global viu_car
 	global centro_mnet
+	global resultados
 
 	now = rospy.get_rostime()
 	imgtime = imagem.header.stamp
@@ -69,10 +71,8 @@ def roda_todo_frame(imagem):
 		centro_mnet, imagem, resultados =  visao_module.processa(cv_image)
 
 		for r in resultados:
-            # print(r) - print feito para documentar e entender
-            # o resultado
-            if r[0] == "cat":
-                viu_cat = True
+			if r[0] == "car":
+				viu_car = True
 
 
 		depois = time.clock()
@@ -115,13 +115,13 @@ if __name__=="__main__":
 
 				dif = media[0] - centro[1]
 		
-				if  dif > 100:
+				if  dif > 60:
 					vel_turn_right = Twist(Vector3(0.1,0,0), Vector3(0,0,-0.5))
 					velocidade_saida.publish(vel_turn_right)
 					rospy.sleep(0.1)
 
 
-				if dif < -100:
+				if dif < -60:
 					vel_turn_left = Twist(Vector3(0.1,0,0), Vector3(0,0,0.5))
 					velocidade_saida.publish(vel_turn_left)
 					rospy.sleep(0.1)
@@ -135,10 +135,10 @@ if __name__=="__main__":
 
 					
 
-			if viu_cat:
+			if viu_car:
 				if len(resultados) !=0:
 					
-					vel_front = Twist(Vector3(-1,0,0), Vector3(0,0,0))
+					vel_front = Twist(Vector3(-0.3,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel_front)
 					rospy.sleep(0.1)
 
