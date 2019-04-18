@@ -34,7 +34,12 @@ centro_mnet = []
 check_delay = False 
 resultados=[]
 
+dados_bumper = None
 
+def bumperzou(dado):
+    global dados_bumper
+    print("Numero: ", dado.data)
+    dados_bumper = dado.data
 
 def scaneou(dado):
     print("Faixa valida: ", dado.range_min , " - ", dado.range_max )
@@ -102,7 +107,8 @@ if __name__=="__main__":
 	print("Usando ", topico_imagem)
 
 	velocidade_saida = rospy.Publisher("/cmd_vel", Twist, queue_size = 1)
-
+	recebe_scan = rospy.Subscriber("/scan", LaserScan, scaneou)
+	recebe_bumper = rospy.Subscriber("/bumper", UInt8, bumperzou)
 	try:
 
 		while not rospy.is_shutdown():
@@ -119,51 +125,83 @@ if __name__=="__main__":
 					vel_turn_right = Twist(Vector3(0.1,0,0), Vector3(0,0,-0.5))
 					velocidade_saida.publish(vel_turn_right)
 					rospy.sleep(0.1)
-
-
 				if dif < -60:
 					vel_turn_left = Twist(Vector3(0.1,0,0), Vector3(0,0,0.5))
 					velocidade_saida.publish(vel_turn_left)
 					rospy.sleep(0.1)
-
 				else:
-		
 					vel_front = Twist(Vector3(0.5,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel_front)
 					rospy.sleep(0.1)
-
-
-					
-
 			if viu_car:
 				if len(resultados) !=0:
 					
 					vel_front = Twist(Vector3(-0.3,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel_front)
 					rospy.sleep(0.1)
-
-
-                    
-                    
-
-
-				
-
-
-
 			velocidade_saida.publish(vel)
 			rospy.sleep(0.1)
-
-
-
-		
-
-
-			
-
-
-
-
+			#adicionando laser scan
+			if dados.ranges[0] < 1:
+				velocidade_saida.publish(vel_back)
+				rospy.sleep(2)
+			if dados.ranges[0] > 1.02:
+				velocidade_saida.publish(vel_forw)
+				rospy.sleep(2)
+			#adicionando bumper
+			vel_forw = Twist(Vector3(0.1,0,0), Vector3(0,0,0))
+        	vel_back = Twist(Vector3(-0.1,0,0), Vector3(0,0,0))
+        	vel_turn_right = Twist(Vector3(0,0,0), Vector3(0,0,1))
+        	vel_turn_left = Twist(Vector3(0,0,0), Vector3(0,0,-1))
+        	vel_stop = Twist(Vector3(0,0,0), Vector3(0,0,0))
+			if dados_bumper == 1:
+				velocidade_saida.publish(vel_back)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_turn_left)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_stop)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_forw)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_turn_right)
+				rospy.sleep(2)
+				dados = 0
+			if dados_bumper == 2:
+				velocidade_saida.publish(vel_back)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_turn_right)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_stop)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_forw)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_turn_left)
+				rospy.sleep(2)
+				dados_bumper = 0
+			if dados_bumper == 3:
+				velocidade_saida.publish(vel_forw)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_turn_left)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_stop)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_back)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_turn_right)
+				rospy.sleep(2)
+				dados_bumper = 0
+			if dados_bumper == 4:
+				velocidade_saida.publish(vel_forw)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_turn_right)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_stop)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_back)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_turn_left)
+				rospy.sleep(2)
+				dados_bumper = 0
 	except rospy.ROSInterruptException:
 	    print("Ocorreu uma exceção com o rospy")
 
