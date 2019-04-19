@@ -69,7 +69,7 @@ laser_frente = []
 centro = []
 atraso = 0.5E9 # 1 segundo e meio. Em nanossegundos
 area = 0.0 # Variavel com a area do maior contorno
-viu_cat = False
+viu_objeto = False
 centro_mnet = []
 count_frame = 0
 
@@ -96,18 +96,19 @@ perto_esq = False
 perto_costas = False
 perto_dir = False
 
-#selecao de categoria via rede neural
+#Selecao de categoria via rede neural
 print("Lista de objetos: background, aeroplane, bicycle, bird, boat, bottle, bus, car, cat, chair, cow, diningtable, dog, horse, motorbike, person, pottedplant, sheep, sofa, train, tvmonitor")
 objeto = raw_input("Escolha o objeto que o robô irá evitar: ")
 
 
+#Função para funcionamento do bumper
 def bumperzou(dado):
     global dados_bumper
     #print("Numero: ", dado.data)
     dados_bumper = dado.data
 
 
-
+#Função para funcionamento do le_scan
 def scaneou(dado):
 	global distancia_min, perto_frente, perto_esq, perto_costas, perto_dir, laser_frente
 	dados_scan = dado.ranges
@@ -177,13 +178,15 @@ def scaneou(dado):
     else:
 		perto_dir = False
 
-# A função a seguir é chamada sempre que chega um novo frame
+
+
+#A função a seguir é chamada sempre que chega um novo frame
 def roda_todo_frame(imagem):
 	print("frame")
 	global cv_image
 	global media
 	global centro
-	global viu_cat
+	global viu_objeto
 	global centro_mnet
 	global resultados
 	global count_frame
@@ -208,25 +211,28 @@ def roda_todo_frame(imagem):
 
 		for r in resultados:
 			if r[0] == objeto:
-				viu_cat = True
+				viu_objeto = True
 			else:
-				viu_cat = False
+				viu_objeto = False
 
-		#tracking
+		
 
+		#######
+		#Código para funcionamento do tracking
 		if count_frame < 5:
 			if len(resultados) != 0:
-				if viu_cat:
+				if viu_objeto:
 					count_frame += 1
 				else:
 					count_frame = 0
 		else:
-			x1 =  resultados[0][2][0]
-        	y1 = resultados[0][2][1]
-        	x2 = resultados[0][3][0]
-        	y2 = resultados[0][3][1]
-        	difx = x2 - x1
-        	dify = y2 - y1
+			if len(resultados) !=0:
+				x1 =  resultados[0][2][0]
+	        	y1 = resultados[0][2][1]
+	        	x2 = resultados[0][3][0]
+	        	y2 = resultados[0][3][1]
+	        	difx = x2 - x1
+	        	dify = y2 - y1
 
         	initBB = (x1, y1, abs(difx), abs(dify))
 
@@ -247,6 +253,9 @@ def roda_todo_frame(imagem):
 	            # update the FPS counter
 	            fps.update()
 	            fps.stop()
+	    #######
+
+
 		depois = time.clock()
 		cv2.imshow("Camera", cv_image)
 	except CvBridgeError as e:
@@ -284,8 +293,8 @@ if __name__=="__main__":
 			vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
 
 
-			#caso veja um gato
-			if viu_cat:
+			#Caso identifique o objeto selecionado a ser evitado
+			if viu_objeto:
 				if len(resultados) !=0:
 					
 					vel_back = Twist(Vector3(-0.3,0,0), Vector3(0,0,0))
@@ -294,7 +303,9 @@ if __name__=="__main__":
 					vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
 					rospy.sleep(0.1)
 
-			#caso identifique azul
+
+
+			#Caso identifique a cor azul (água)
 			elif len(media) != 0 and len(centro) != 0:
 				print("Média dos azuis: {0}, {1}".format(media[0], media[1]))
 				print("Centro dos azuis: {0}, {1}".format(centro[0], centro[1]))
@@ -312,13 +323,16 @@ if __name__=="__main__":
 					velocidade_saida.publish(vel_turn_left)
 					rospy.sleep(0.1)
 				else:
-					#controle proporcional
+					#Controle proporcional
 					v = 0
 					for d in laser_frente:
 						v = 1/2*d
 					vel_front = Twist(Vector3(v,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel_front)
 					rospy.sleep(0.1)
+
+
+
 
 			vel_forw_survive = Twist(Vector3(0.1,0,0), Vector3(0,0,0))
 			vel_back_survive = Twist(Vector3(-0.1,0,0), Vector3(0,0,0))
@@ -328,7 +342,7 @@ if __name__=="__main__":
 			vel_escape_left = Twist(Vector3(0.1,0,0), Vector3(0,0,0.5))
 			vel_stop = Twist(Vector3(0,0,0), Vector3(0,0,0))
 
-			#adicionando laser scan
+			#Adicionando laser scan
 			if perto_frente == True:
 				velocidade_saida.publish(vel_back_survive)
 				rospy.sleep(2)
@@ -361,7 +375,7 @@ if __name__=="__main__":
 
 				perto_dir = False
 
-			#adicionando bumper
+			#Adicionando bumper
 			if dados_bumper == 1:
 				velocidade_saida.publish(vel_back_survive)
 				rospy.sleep(2)
