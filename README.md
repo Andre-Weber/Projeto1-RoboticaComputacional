@@ -14,4 +14,7 @@ Alunos: André Weber e Lucas Muchaluat <br />
 * O robô tem características de sobrevivência.
   * Um escaneamento infravermelho para evitar colisões com obstáculos próximos.
   * Bumpers para caso haja batida se movimente a direção oposta.
+  
+  
+Vídeo mostrando o funcionamento: https://youtu.be/hs9sVoCzdCU <br />
 
