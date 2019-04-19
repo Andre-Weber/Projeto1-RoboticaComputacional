@@ -90,8 +90,13 @@ x2 = 0
 y1 = 0
 y2 = 0
 
+distancia_min = 0.2
+perto_frente = False
+perto_esq = False
+perto_costas = False
+perto_dir = False
 
-
+#selecao de categoria via rede neural
 print("Lista de objetos: background, aeroplane, bicycle, bird, boat, bottle, bus, car, cat, chair, cow, diningtable, dog, horse, motorbike, person, pottedplant, sheep, sofa, train, tvmonitor")
 objeto = raw_input("Escolha o objeto que o robô irá evitar: ")
 
@@ -103,11 +108,74 @@ def bumperzou(dado):
 
 
 
+def scaneou(dado):
+	global distancia_min, perto_frente, perto_esq, perto_costas, perto_dir, laser_frente
+	dados_scan = dado.ranges
+	
+	laser_frente_naolimpa = list(dados_scan[:46] + scan_ranges[315:])
+	for e in laser_frente:
+		if e != 0:
+			laser_frente.append(e)
 
+	if len(laser_frente) > 0:
+        maisperto_frente = min(laser_frente)
+        if maisperto_frente <= distancia_min:
+            perto_frente = True
 
+        else:
+            perto_frente = False
 
+    else:
+		perto_frente = False
 
+    laser_esq_naolimpa = list(dados_scan[45:136])
+	for e in laser_esq_naolimpa:
+		if e != 0:
+			laser_esq.append(e)
 
+	if len(laser_esq) > 0:
+        maisperto_esq = min(laser_esq)
+        if maisperto_esq <= distancia_min:
+            perto_esq = True
+
+        else:
+            perto_esq = False
+
+    else:
+		perto_esq = False
+
+    laser_costas_naolimpa = list(scan_ranges[136:226])
+    for e in laser_costas_naolimpa:
+		if e != 0:
+			laser_costas.append(e)
+	
+	if len(laser_costas) > 0:
+        maisperto_costas = min(laser_costas)
+
+        if maisperto_costas <= distancia_min:
+            perto_costas = True
+
+        else:
+            perto_costas = False
+
+    else:
+		perto_costas = False
+
+    laser_dir_naolimpa = list(scan_ranges[226:316])
+	for e in laser_dir_naolimpa:
+		if e != 0:
+			laser_dir.append(e)
+
+	if len(laser_dir) > 0:
+        maisperto_dir = min(laser_dir)
+        if maisperto_dir <= distancia_min:
+            perto_dir = True
+
+        else:
+            perto_dir = False
+
+    else:
+		perto_dir = False
 
 # A função a seguir é chamada sempre que chega um novo frame
 def roda_todo_frame(imagem):
@@ -144,12 +212,6 @@ def roda_todo_frame(imagem):
 			else:
 				viu_cat = False
 
-
-
-
-
-
-
 		#tracking
 
 		if count_frame < 5:
@@ -158,16 +220,13 @@ def roda_todo_frame(imagem):
 					count_frame += 1
 				else:
 					count_frame = 0
-
-
 		else:
-			if len(resultados) != 0:
-				x1 =  resultados[0][2][0]
-	        	y1 = resultados[0][2][1]
-	        	x2 = resultados[0][3][0]
-	        	y2 = resultados[0][3][1]
-	        	difx = x2 - x1
-	        	dify = y2 - y1
+			x1 =  resultados[0][2][0]
+        	y1 = resultados[0][2][1]
+        	x2 = resultados[0][3][0]
+        	y2 = resultados[0][3][1]
+        	difx = x2 - x1
+        	dify = y2 - y1
 
         	initBB = (x1, y1, abs(difx), abs(dify))
 
@@ -188,13 +247,6 @@ def roda_todo_frame(imagem):
 	            # update the FPS counter
 	            fps.update()
 	            fps.stop()
-
-
-
-
-
-
-
 		depois = time.clock()
 		cv2.imshow("Camera", cv_image)
 	except CvBridgeError as e:
@@ -222,7 +274,7 @@ if __name__=="__main__":
 	print("Usando ", topico_imagem)
 
 	velocidade_saida = rospy.Publisher("/cmd_vel", Twist, queue_size = 1)
-	
+	recebe_scan = rospy.Subscriber("/scan", LaserScan, scaneou)
 	recebe_bumper = rospy.Subscriber("/bumper", UInt8, bumperzou)
 
 
@@ -242,7 +294,7 @@ if __name__=="__main__":
 					vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
 					rospy.sleep(0.1)
 
-
+			#caso identifique azul
 			elif len(media) != 0 and len(centro) != 0:
 				print("Média dos azuis: {0}, {1}".format(media[0], media[1]))
 				print("Centro dos azuis: {0}, {1}".format(centro[0], centro[1]))
@@ -260,36 +312,56 @@ if __name__=="__main__":
 					velocidade_saida.publish(vel_turn_left)
 					rospy.sleep(0.1)
 				else:
-		
+					#controle proporcional
+					v = 0
+					for d in laser_frente:
+						v = 1/2*d
 					vel_front = Twist(Vector3(v,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel_front)
 					rospy.sleep(0.1)
-
-
-
-
 
 			vel_forw_survive = Twist(Vector3(0.1,0,0), Vector3(0,0,0))
 			vel_back_survive = Twist(Vector3(-0.1,0,0), Vector3(0,0,0))
 			vel_turn_right_survive = Twist(Vector3(0,0,0), Vector3(0,0,1))
 			vel_turn_left_survive = Twist(Vector3(0,0,0), Vector3(0,0,-1))
+			vel_escape_right = Twist(Vector3(0.1,0,0), Vector3(0,0,-0.5))
+			vel_escape_left = Twist(Vector3(0.1,0,0), Vector3(0,0,0.5))
 			vel_stop = Twist(Vector3(0,0,0), Vector3(0,0,0))
 
-
 			#adicionando laser scan
-			#if dados < 0.1:
-				#velocidade_saida.publish(vel_back_survive)
-				#rospy.sleep(2)
-				#velocidade_saida.publish(vel_turn_right_survive)
-				#rospy.sleep(2)
-			
+			if perto_frente == True:
+				velocidade_saida.publish(vel_back_survive)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_stop)
+				rospy.sleep(0.1)
+				
+				perto_frente = False
 
+			if perto_esq == True:
+				velocidade_saida.publish(vel_escape_right)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_stop)
+				rospy.sleep(0.1)
 
+				perto_esq = False
 
+			if perto_costas == True:
+				velocidade_saida.publish(vel_forw_survive)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_stop)
+				rospy.sleep(0.1)
+				
+				perto_costas = False
+
+			if perto_dir == True:
+				velocidade_saida.publish(vel_escape_left)
+				rospy.sleep(2)
+				velocidade_saida.publish(vel_stop)
+				rospy.sleep(0.1)
+
+				perto_dir = False
 
 			#adicionando bumper
-			
-
 			if dados_bumper == 1:
 				velocidade_saida.publish(vel_back_survive)
 				rospy.sleep(2)
@@ -297,10 +369,7 @@ if __name__=="__main__":
 				rospy.sleep(2)
 				velocidade_saida.publish(vel_stop)
 				rospy.sleep(2)
-				#velocidade_saida.publish(vel_forw_survive)
-				#rospy.sleep(2)
-				#velocidade_saida.publish(vel_turn_right_survive)
-				#rospy.sleep(2)
+				
 				dados_bumper = 0
 			if dados_bumper == 2:
 				velocidade_saida.publish(vel_back_survive)
@@ -309,10 +378,7 @@ if __name__=="__main__":
 				rospy.sleep(2)
 				velocidade_saida.publish(vel_stop)
 				rospy.sleep(2)
-				#velocidade_saida.publish(vel_forw_survive)
-				#rospy.sleep(2)
-				#velocidade_saida.publish(vel_turn_left_survive)
-				#rospy.sleep(2)
+				
 				dados_bumper = 0
 			if dados_bumper == 3:
 				velocidade_saida.publish(vel_forw_survive)
@@ -321,10 +387,7 @@ if __name__=="__main__":
 				rospy.sleep(2)
 				velocidade_saida.publish(vel_stop)
 				rospy.sleep(2)
-				#velocidade_saida.publish(vel_back_survive)
-				#rospy.sleep(2)
-				#velocidade_saida.publish(vel_turn_right_survive)
-				#rospy.sleep(2)
+				
 				dados_bumper = 0
 			if dados_bumper == 4:
 				velocidade_saida.publish(vel_forw_survive)
@@ -333,10 +396,7 @@ if __name__=="__main__":
 				rospy.sleep(2)
 				velocidade_saida.publish(vel_stop)
 				rospy.sleep(2)
-				#velocidade_saida.publish(vel_back_survive)
-				#rospy.sleep(2)
-				#velocidade_saida.publish(vel_turn_left_survive)
-				#rospy.sleep(2)
+				
 				dados_bumper = 0
 	except rospy.ROSInterruptException:
 	    print("Ocorreu uma exceção com o rospy")
