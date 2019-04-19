@@ -1,7 +1,7 @@
 # Projeto1-RoboticaComputacional
 Entrega para o Projeto 1 de Robótica Computacional. <br />
 Código prinpcial com as funções e comandos para o robô: main.py <br />
-[Vídeo]https://youtu.be/hs9sVoCzdCU <br />
+[Vídeo do funcionamento do robô](https://youtu.be/hs9sVoCzdCU) <br />
 Alunos: André Weber e Lucas Muchaluat <br />
 
 
