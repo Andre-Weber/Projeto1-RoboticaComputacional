@@ -17,6 +17,46 @@ from std_msgs.msg import UInt8
 from cv_bridge import CvBridge, CvBridgeError
 import cormodule
 import visao_module
+from imutils.video import VideoStream
+from imutils.video import FPS
+import argparse
+import imutils
+import argparse
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("-v", "--video", type=str,
+	help="path to input video file")
+ap.add_argument("-t", "--tracker", type=str, default="kcf",
+	help="OpenCV object tracker type")
+args = vars(ap.parse_args())
+
+
+(major, minor) = cv2.__version__.split(".")[:2]
+
+# if we are using OpenCV 3.2 OR BEFORE, we can use a special factory
+# function to create our object tracker
+if int(major) == 3 and int(minor) < 3:
+	tracker = cv2.Tracker_create(args["tracker"].upper())
+
+# otherwise, for OpenCV 3.3 OR NEWER, we need to explicity call the
+# approrpiate object tracker constructor:
+else:
+	# initialize a dictionary that maps strings to their corresponding
+	# OpenCV object tracker implementations
+	OPENCV_OBJECT_TRACKERS = {
+		"csrt": cv2.TrackerCSRT_create,
+		"kcf": cv2.TrackerKCF_create,
+		"boosting": cv2.TrackerBoosting_create,
+		"mil": cv2.TrackerMIL_create,
+		"tld": cv2.TrackerTLD_create,
+		"medianflow": cv2.TrackerMedianFlow_create,
+		"mosse": cv2.TrackerMOSSE_create
+	}
+
+	# grab the appropriate object tracker using our dictionary of
+	# OpenCV object tracker objects
+	tracker = OPENCV_OBJECT_TRACKERS[args["tracker"]]()
 
 
 
@@ -25,11 +65,13 @@ bridge = CvBridge()
 
 cv_image = None
 media = []
+laser_frente = []
 centro = []
 atraso = 0.5E9 # 1 segundo e meio. Em nanossegundos
 area = 0.0 # Variavel com a area do maior contorno
 viu_cat = False
 centro_mnet = []
+count_frame = 0
 
 # Só usar se os relógios ROS da Raspberry e do Linux desktop estiverem sincronizados. 
 # Descarta imagens que chegam atrasadas demais
@@ -40,6 +82,20 @@ dados = 0
 
 dados_bumper = None
 
+fps = None
+initBB = None
+
+x1 = 0
+x2 = 0
+y1 = 0
+y2 = 0
+
+
+
+print("Lista de objetos: background, aeroplane, bicycle, bird, boat, bottle, bus, car, cat, chair, cow, diningtable, dog, horse, motorbike, person, pottedplant, sheep, sofa, train, tvmonitor")
+objeto = raw_input("Escolha o objeto que o robô irá evitar: ")
+
+
 def bumperzou(dado):
     global dados_bumper
     #print("Numero: ", dado.data)
@@ -48,12 +104,7 @@ def bumperzou(dado):
 
 
 
-def scaneou(dado):
-    #print("Faixa valida: ", dado.range_min , " - ", dado.range_max )
-    #print("Leituras:")
-    #print(np.array(dado.ranges).round(decimals=2))
-    dados = dado.ranges[0]
-    global dados
+
 
 
 
@@ -67,6 +118,11 @@ def roda_todo_frame(imagem):
 	global viu_cat
 	global centro_mnet
 	global resultados
+	global count_frame
+	global initBB
+	global x1, x2, y1, y2
+	global tracker
+
 
 	now = rospy.get_rostime()
 	imgtime = imagem.header.stamp
@@ -83,10 +139,60 @@ def roda_todo_frame(imagem):
 		centro_mnet, imagem, resultados =  visao_module.processa(cv_image)
 
 		for r in resultados:
-			if r[0] == "cat":
+			if r[0] == objeto:
 				viu_cat = True
 			else:
 				viu_cat = False
+
+
+
+
+
+
+
+		#tracking
+
+		if count_frame < 5:
+			if len(resultados) != 0:
+				if viu_cat:
+					count_frame += 1
+				else:
+					count_frame = 0
+
+
+		else:
+			if len(resultados) != 0:
+				x1 =  resultados[0][2][0]
+	        	y1 = resultados[0][2][1]
+	        	x2 = resultados[0][3][0]
+	        	y2 = resultados[0][3][1]
+	        	difx = x2 - x1
+	        	dify = y2 - y1
+
+        	initBB = (x1, y1, abs(difx), abs(dify))
+
+        	tracker.init(cv_image, initBB)
+
+        	fps = FPS().start()
+
+
+        	if initBB is not None:
+            # grab the new bounding box coordinates of the object
+	            (success, box) = tracker.update(cv_image)
+
+	            # check to see if the tracking was a success
+	            if success:
+	                (x, y, w, h) = [int(v) for v in box]
+	                cv2.rectangle(cv_image, (x, y), (x + w, y + h),
+	                    (0, 255, 0), 2)
+	            # update the FPS counter
+	            fps.update()
+	            fps.stop()
+
+
+
+
+
 
 
 		depois = time.clock()
@@ -116,7 +222,7 @@ if __name__=="__main__":
 	print("Usando ", topico_imagem)
 
 	velocidade_saida = rospy.Publisher("/cmd_vel", Twist, queue_size = 1)
-	recebe_scan = rospy.Subscriber("/scan", LaserScan, scaneou)
+	
 	recebe_bumper = rospy.Subscriber("/bumper", UInt8, bumperzou)
 
 
@@ -154,7 +260,8 @@ if __name__=="__main__":
 					velocidade_saida.publish(vel_turn_left)
 					rospy.sleep(0.1)
 				else:
-					vel_front = Twist(Vector3(0.5,0,0), Vector3(0,0,0))
+		
+					vel_front = Twist(Vector3(v,0,0), Vector3(0,0,0))
 					velocidade_saida.publish(vel_front)
 					rospy.sleep(0.1)
 
@@ -170,11 +277,11 @@ if __name__=="__main__":
 
 
 			#adicionando laser scan
-			if dados < 0.1:
-				velocidade_saida.publish(vel_back_survive)
-				rospy.sleep(2)
-				velocidade_saida.publish(vel_turn_right_survive)
-				rospy.sleep(2)
+			#if dados < 0.1:
+				#velocidade_saida.publish(vel_back_survive)
+				#rospy.sleep(2)
+				#velocidade_saida.publish(vel_turn_right_survive)
+				#rospy.sleep(2)
 			
 
 
